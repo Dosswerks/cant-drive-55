@@ -73,7 +73,13 @@ const W=640,H=480,N=300,SL=100,RW=1400;
 const img={},snd={};
 function li(k,s){return new Promise(r=>{if(!s)return r();const i=new Image();i.onload=()=>{img[k]=i;r()};i.onerror=()=>r();i.src=s})}
 function ls(k,s){if(!s)return;snd[k]=new Audio(s);snd[k].volume=0.5}
-function ps(k){if(!snd[k])return;try{snd[k].currentTime=0;snd[k].play().catch(()=>{});}catch(e){try{const s=new Audio(snd[k].src);s.volume=snd[k].volume;s.play().catch(()=>{});}catch(e2){}}}
+function ps(k){if(!snd[k])return;snd[k].currentTime=0;const p=snd[k].play();if(p)p.catch(()=>{});}
+let audioUnlocked=false;
+function unlockAudio(){
+    if(audioUnlocked)return;audioUnlocked=true;
+    for(const k in snd){snd[k].load();}
+    if(music)music.load();
+}
 let music=null;
 function startM(){if(music&&music.paused)music.play().catch(()=>{})}
 function stopM(){if(music){music.pause();music.currentTime=0}}
@@ -126,9 +132,9 @@ function update(dt){
     G.time-=dt;
     if(G.time<=0){G.time=0;G.over=true;stopM();ps('gameover');updUI();return;}
     if(G.crash>0){G.crash-=dt;G.spd*=0.95;updUI();return;}
-    const tf=dt*60; // normalize to 60fps
-    // Auto accel
-    G.spd=Math.min(G.spd+0.3*tf,G.mx);
+    const tf=dt*60;
+    // Auto accel — spd is frame-independent, only position uses tf
+    G.spd=Math.min(G.spd+0.2,G.mx);
     // Steer
     let st=0;
     if(G.keys.l)st=-0.012;if(G.keys.r)st=0.012;
@@ -137,13 +143,15 @@ function update(dt){
     if(Math.abs(G.px)>0.55){
         if(!G.offRoad){G.offRoad=true;ps('offroad');}
         G.shake=Math.min(G.shake+0.15*tf,4);
-        G.spd=Math.max(G.mx*0.08,G.spd-2.4*tf);
+        G.spd=Math.max(G.mx*0.08,G.spd-1.5);
     }else{G.offRoad=false;G.shake=Math.max(0,G.shake-0.5*tf);}
     // Curve pull
     const si=Math.floor(G.pos/SL)%TL;
     G.px-=seg[si].c*(G.spd/G.mx)*0.002*tf;
     G.sky+=seg[si].c*(G.spd/G.mx)*0.15*tf;
-    G.pos+=G.spd*tf;G.dist+=G.spd*tf;
+    // Only position movement uses tf
+    const move=G.spd*tf;
+    G.pos+=move;G.dist+=move;
     // Spawn cops
     if(G.dist>G.nextCop*SL&&G.cops<8){
         const idx=(si+100+Math.floor(Math.random()*120))%TL;
@@ -153,37 +161,35 @@ function update(dt){
         }
         G.nextCop=G.dist/SL+Math.max(60,250-G.cops*20);
     }
-    // Lap
+    // Mile check
     if(G.pos>=TL*SL){G.pos-=TL*SL;G.lap++;G.time+=30;ps('lap');
         if(G.lap>G.laps){G.over=true;stopM();ps('win');}}
-    // Collision
-    for(let i=0;i<10;i++){
-        const idx=(si+i)%TL;
+    // Collision — wider check range and hitbox
+    const si2=Math.floor(G.pos/SL)%TL;
+    for(let i=0;i<15;i++){
+        const idx=(si2+i)%TL;
         for(const car of seg[idx].cars){
             const cz=((idx*SL)-G.pos+TL*SL)%(TL*SL);
-            if(cz>0&&cz<SL*3&&Math.abs(G.px-car.o)<0.25){
+            if(cz>0&&cz<SL*5&&Math.abs(G.px-car.o)<0.3){
                 G.crash=1.5;G.spd=0;G.px=0;G.pos=0;G.lives--;ps('crash');
-                for(let c=0;c<30;c++){const ci=(si+c)%TL;G.cops-=seg[ci].cars.length;seg[ci].cars=[];}
+                for(let c=0;c<30;c++){const ci=(si2+c)%TL;G.cops-=seg[ci].cars.length;seg[ci].cars=[];}
                 G.cops=Math.max(0,G.cops);
-                for(let c=0;c<3;c++){const ni=(si+50+Math.floor(Math.random()*100))%TL;
+                for(let c=0;c<3;c++){const ni=(si2+50+Math.floor(Math.random()*100))%TL;
                     seg[ni].cars.push({o:(Math.random()-0.5)*1.2,p:false});G.cops++;}
                 if(G.lives<=0){G.over=true;stopM();ps('gameover');}
                 break;
             }
         }
     }
-    // Pass — trigger when cop is visible ahead (within 20 segments)
-    const si3=Math.floor(G.pos/SL)%TL;
-    for(let i=1;i<50;i++){
-        const idx=(si3+i)%TL;
-        for(const car of seg[idx].cars){
-            if(!car.p && i<20){car.p=true;ps('pass');}
-        }
+    // Pass
+    for(let i=1;i<30;i++){
+        const idx=(si2+i)%TL;
+        for(const car of seg[idx].cars){if(!car.p&&i<20){car.p=true;ps('pass');}}
     }
-    // Billboard/sign collision — if player is off road near scenery
+    // Billboard/sign collision
     if(Math.abs(G.px)>0.6&&G.crash<=0){
         for(let i=0;i<8;i++){
-            const idx=(si+i)%TL;
+            const idx=(si2+i)%TL;
             for(const sc of seg[idx].sc){
                 if((G.px>0&&sc.s>0)||(G.px<0&&sc.s<0)){
                     G.crash=1.5;G.spd=0;G.px=0;G.pos=0;G.lives--;ps('crash');
@@ -456,11 +462,7 @@ let lt=0;
 function loop(t){const dt=Math.min((t-lt)/1000,0.05);lt=t;update(dt);draw();requestAnimationFrame(loop);}
 const SS=document.getElementById('start-screen');
 function go(){if(!G.run&&!G.over){G.run=true;SS.classList.add('hidden');
-    // Unlock mobile audio with silent context
-    try{const ac=new(window.AudioContext||window.webkitAudioContext)();
-        const b=ac.createBuffer(1,1,22050);const s=ac.createBufferSource();
-        s.buffer=b;s.connect(ac.destination);s.start(0);}catch(e){}
-    startM();
+    unlockAudio();startM();
 }}
 SS.addEventListener('click',go);
 SS.addEventListener('touchstart',e=>{e.preventDefault();go();},{passive:false});
@@ -470,7 +472,7 @@ document.addEventListener('keydown',e=>{
     if(e.key==='q'||e.key==='Q'){stopM();initGame();SS.classList.remove('hidden');}
 });
 document.addEventListener('keyup',e=>{if(e.key==='ArrowLeft')G.keys.l=false;if(e.key==='ArrowRight')G.keys.r=false;});
-C.addEventListener('touchstart',e=>{e.preventDefault();
+C.addEventListener('touchstart',e=>{e.preventDefault();unlockAudio();
     if(G.over){initGame();G.run=true;startM();return;}
     const r=C.getBoundingClientRect();G.tx=(e.touches[0].clientX-r.left)*(W/r.width);
     G.px=((G.tx-W/2)/(W/2))*1.1;
