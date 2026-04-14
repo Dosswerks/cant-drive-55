@@ -126,23 +126,24 @@ function update(dt){
     G.time-=dt;
     if(G.time<=0){G.time=0;G.over=true;stopM();ps('gameover');updUI();return;}
     if(G.crash>0){G.crash-=dt;G.spd*=0.95;updUI();return;}
-    // Auto accel — slower ramp
-    G.spd=Math.min(G.spd+0.3,G.mx);
+    const tf=dt*60; // normalize to 60fps
+    // Auto accel
+    G.spd=Math.min(G.spd+0.3*tf,G.mx);
     // Steer
     let st=0;
     if(G.keys.l)st=-0.012;if(G.keys.r)st=0.012;
-    G.px+=st*(G.spd/G.mx);
+    G.px+=st*tf*(G.spd/G.mx);
     // Off road
     if(Math.abs(G.px)>0.55){
         if(!G.offRoad){G.offRoad=true;ps('offroad');}
-        G.shake=Math.min(G.shake+0.15,4);
-        G.spd=Math.max(G.mx*0.08,G.spd-2.4);
-    }else{G.offRoad=false;G.shake=Math.max(0,G.shake-0.5);}
+        G.shake=Math.min(G.shake+0.15*tf,4);
+        G.spd=Math.max(G.mx*0.08,G.spd-2.4*tf);
+    }else{G.offRoad=false;G.shake=Math.max(0,G.shake-0.5*tf);}
     // Curve pull
     const si=Math.floor(G.pos/SL)%TL;
-    G.px-=seg[si].c*(G.spd/G.mx)*0.002;
-    G.sky+=seg[si].c*(G.spd/G.mx)*0.15;
-    G.pos+=G.spd;G.dist+=G.spd;
+    G.px-=seg[si].c*(G.spd/G.mx)*0.002*tf;
+    G.sky+=seg[si].c*(G.spd/G.mx)*0.15*tf;
+    G.pos+=G.spd*tf;G.dist+=G.spd*tf;
     // Spawn cops
     if(G.dist>G.nextCop*SL&&G.cops<8){
         const idx=(si+100+Math.floor(Math.random()*120))%TL;
@@ -454,7 +455,10 @@ function dp(x1,y1,x2,y2,x3,y3,x4,y4,c){X.fillStyle=c;X.beginPath();X.moveTo(x1,y
 let lt=0;
 function loop(t){const dt=Math.min((t-lt)/1000,0.05);lt=t;update(dt);draw();requestAnimationFrame(loop);}
 const SS=document.getElementById('start-screen');
-function go(){if(!G.run&&!G.over){G.run=true;SS.classList.add('hidden');startM();}}
+function go(){if(!G.run&&!G.over){G.run=true;SS.classList.add('hidden');startM();
+    // Unlock audio on mobile by playing/pausing all sounds
+    for(const k in snd){try{snd[k].play().then(()=>snd[k].pause()).catch(()=>{});}catch(e){}}
+}}
 SS.addEventListener('click',go);
 SS.addEventListener('touchstart',e=>{e.preventDefault();go();},{passive:false});
 document.addEventListener('keydown',e=>{
