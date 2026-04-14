@@ -73,7 +73,7 @@ const W=640,H=480,N=300,SL=100,RW=1400;
 const img={},snd={};
 function li(k,s){return new Promise(r=>{if(!s)return r();const i=new Image();i.onload=()=>{img[k]=i;r()};i.onerror=()=>r();i.src=s})}
 function ls(k,s){if(!s)return;snd[k]=new Audio(s);snd[k].volume=0.5}
-function ps(k){if(snd[k]){try{const s=new Audio(snd[k].src);s.volume=snd[k].volume;s.play().catch(()=>{});}catch(e){}}}
+function ps(k){if(!snd[k])return;try{snd[k].currentTime=0;snd[k].play().catch(()=>{});}catch(e){try{const s=new Audio(snd[k].src);s.volume=snd[k].volume;s.play().catch(()=>{});}catch(e2){}}}
 let music=null;
 function startM(){if(music&&music.paused)music.play().catch(()=>{})}
 function stopM(){if(music){music.pause();music.currentTime=0}}
@@ -111,7 +111,7 @@ function buildTrack(){
 let G={};
 function initGame(){
     buildTrack();
-    G={run:false,over:false,pos:0,spd:0,mx:SL*1.0,px:0,
+    G={run:false,over:false,pos:0,spd:0,mx:SL*0.6,px:0,
        lap:1,laps:3,lives:5,time:60,crash:0,
        keys:{l:false,r:false},tx:null,sky:0,
        dist:0,nextCop:300,cops:0,offRoad:false,shake:0};
@@ -455,9 +455,12 @@ function dp(x1,y1,x2,y2,x3,y3,x4,y4,c){X.fillStyle=c;X.beginPath();X.moveTo(x1,y
 let lt=0;
 function loop(t){const dt=Math.min((t-lt)/1000,0.05);lt=t;update(dt);draw();requestAnimationFrame(loop);}
 const SS=document.getElementById('start-screen');
-function go(){if(!G.run&&!G.over){G.run=true;SS.classList.add('hidden');startM();
-    // Unlock audio on mobile by playing/pausing all sounds
-    for(const k in snd){try{snd[k].play().then(()=>snd[k].pause()).catch(()=>{});}catch(e){}}
+function go(){if(!G.run&&!G.over){G.run=true;SS.classList.add('hidden');
+    // Unlock mobile audio with silent context
+    try{const ac=new(window.AudioContext||window.webkitAudioContext)();
+        const b=ac.createBuffer(1,1,22050);const s=ac.createBufferSource();
+        s.buffer=b;s.connect(ac.destination);s.start(0);}catch(e){}
+    startM();
 }}
 SS.addEventListener('click',go);
 SS.addEventListener('touchstart',e=>{e.preventDefault();go();},{passive:false});
