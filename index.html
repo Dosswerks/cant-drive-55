@@ -494,7 +494,16 @@ function draw(){
         }
         X.fillStyle='#fff';X.font='bold 22px Arial';
         X.fillText('Miles: '+Math.min(G.lap,G.laps)+'/'+G.laps,W/2,H/2+46);
-        X.fillText('Tap or press R to restart',W/2,H/2+80);X.textAlign='left';}
+        X.fillText('Tap or press R to restart',W/2,H/2+80);
+        // Tip jar QR on game over screen
+        if(qrImg){
+            var qrS=56,qrX=W/2-qrS/2,qrY=H/2+118;
+            X.fillStyle='#fff';X.font='bold 12px Arial';
+            X.fillText('Enjoying the game? Tips keep the games coming!',W/2,qrY-10);
+            X.fillStyle='#fff';X.fillRect(qrX-3,qrY-3,qrS+6,qrS+6);
+            X.drawImage(qrImg,qrX,qrY,qrS,qrS);
+        }
+        X.textAlign='left';}
 }
 function dp(x1,y1,x2,y2,x3,y3,x4,y4,c){X.fillStyle=c;X.beginPath();X.moveTo(x1,y1);X.lineTo(x2,y2);X.lineTo(x3,y3);X.lineTo(x4,y4);X.closePath();X.fill();}
 </script>
@@ -552,12 +561,18 @@ async function init(){
 init();
 </script>
 <script>
+var qrImg=null;
 (function(){
     var qr = qrcode(0, 'L');
     qr.addData('https://www.paypal.com/donate/?hosted_button_id=HDD77QKGC6XXN');
     qr.make();
     var el = document.getElementById('qr-code');
     if (el) el.innerHTML = qr.createSvgTag({cellSize:2, margin:0});
+    // Pre-render QR to image for canvas drawing
+    var svg=qr.createSvgTag({cellSize:3,margin:0});
+    var blob=new Blob([svg],{type:'image/svg+xml'});
+    var url=URL.createObjectURL(blob);
+    var i=new Image();i.onload=function(){qrImg=i;URL.revokeObjectURL(url);};i.src=url;
 })();
 </script>
 </body>
