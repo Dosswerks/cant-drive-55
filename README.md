@@ -15,7 +15,7 @@ The drive is broken into 3 miles. Complete each mile and you get 30 more seconds
 ## Controls
 
 - **Desktop**: Left and right arrow keys to steer. R to restart. Q to quit to title screen.
-- **Mobile**: Slide your finger left and right — finger position directly controls the car, similar to Barrel Bears.
+- **Mobile**: Slide your finger left and right — finger position directly controls the car.
 
 ## Difficulty Progression
 
@@ -69,41 +69,25 @@ You are behind the wheel. The gear is in the back. The setlist is ready. All you
 
 ### Architecture
 
-Can't Drive 55 is a single-file HTML5 Canvas game with no external dependencies. All game logic, pseudo-3D road rendering, audio management, and input handling are contained in one `index.html` file. It runs in any modern browser on desktop or mobile.
+Can't Drive 55 is a single-file HTML5 Canvas game with no external dependencies (aside from the QR code library for the tip jar). All game logic, pseudo-3D road rendering, audio management, and input handling are contained in one `index.html` file. It runs in any modern browser on desktop or mobile.
 
-### Development Process
+### Social Sharing
 
-The game was developed iteratively through conversational AI-assisted coding using Kiro. The process involved:
-
-1. **Initial concept**: Started as a Pole Position clone for the Atari 2600, then evolved through the arcade Pole Position style, then to an OutRun-inspired pseudo-3D engine, all while maintaining the "Can't Drive 55" theme.
-
-2. **Rendering engine**: The pseudo-3D road was the most technically challenging aspect. Multiple iterations of the projection math were required to achieve smooth rendering:
-   - The final approach uses `1/(z * 0.0015)` as a unified scale factor
-   - Road Y positions are calculated as `H*0.45 + 200/z * H*0.4`
-   - Segments are pre-computed into an array, then drawn far-to-near
-   - Sprites (cars, scenery) are drawn in a separate sorted pass
-   - Car and scenery sizes derive from the road half-width for consistent scaling
-
-3. **Theme evolution**: The visual theme went through several iterations — desert sunset, post-apocalyptic, dark moody, and finally settled on bright California daylight to match the original Sammy Hagar music video aesthetic (golden hills, washed-out blue sky, grey asphalt).
-
-4. **Gameplay tuning**: Speed, steering sensitivity, curve pull, off-road thresholds, collision hitboxes, and cop spawn rates were all tuned through extensive iteration to find the right balance between challenge and playability.
-
-5. **Audio system**: Sound effects use `new Audio(src)` for each play instance to support overlapping sounds. Background music loops at higher volume (0.85) with effects at lower volume (0.5) for balance.
-
-6. **Progressive difficulty**: Police cars spawn dynamically based on distance traveled rather than being placed at track build time. The first cop doesn't appear until 300 segments of driving, with gaps between spawns shrinking from 250 segments down to 60.
+The page includes Open Graph and Twitter Card meta tags for rich link previews when shared on social media. The `box-art.png` asset is used as the preview image.
 
 ### Key Technical Features
 
 - **Pseudo-3D road rendering**: Perspective-projected road segments with curves, hills, shoulders, rumble strips, and lane markings
 - **Parallax scrolling**: Two-layer hills and horizon buildings shift with steering for depth
-- **Dynamic cop spawning**: Progressive difficulty that ramps naturally
+- **Dynamic cop spawning**: Progressive difficulty that ramps naturally based on distance traveled
 - **Roadside scenery**: Billboards and signs scale with perspective and support custom images
 - **Analog speedometer**: Chrome-bordered gauge with notches, colored arc, and red needle
 - **Explosion sprites**: 2-frame animated explosion on crash
 - **Off-road effects**: Slowdown, screen shake, dust overlay, and sound
 - **Speed lines**: Visual streaks at high velocity
 - **Responsive layout**: Canvas scales to fit mobile screens
-- **Touch controls**: Barrel Bears-style finger-position steering
+- **Touch controls**: Finger-position steering for mobile
+- **Tip jar**: PayPal donation button with QR code, consistent with other Dosswerks Arcade games
 
 ### Asset System
 
@@ -112,25 +96,20 @@ All custom assets are defined in the config object at the top of the script:
 ```javascript
 const A = {
     playerCarImage: 'assets/player.png',       // 250x155 rear view
-    enemyCarImage: 'assets/enemy.png',         // 120x75 police car rear view
+    enemyCarImage: 'assets/enemy.png',         // police car rear view
     backgroundImage: 'assets/sky.png',         // 640x216 sky background
-    boxArtImage: 'assets/box-art.png',         // splash screen
-    billboard1Image - billboard6Image,          // 120x60 each, band photos
-    signImage: 'assets/sign.png',              // 40x60 speed limit sign
-    horizonImage: 'assets/horizon.png',        // 640x60 parallax horizon strip
+    boxArtImage: 'assets/box-art.png',         // splash screen / OG image
+    billboard1Image–billboard6Image,            // band photo billboards
+    signImage: 'assets/sign.png',              // speed limit sign
+    horizonImage: 'assets/horizon.png',        // parallax horizon strip
     bandLogoImage: 'assets/band-logo.png',     // 60x80 upper-right corner
-    livesCarImage: 'assets/lives-car.png',     // 20x12 tiny car for lives
-    explosion1Image: 'assets/explosion1.png',  // 250x155 explosion frame 1
-    explosion2Image: 'assets/explosion2.png',  // 250x155 explosion frame 2
-    licenseImage: 'assets/license.png',        // 200x120 game over (REVOKED)
-    timesUpImage: 'assets/timesup.png',        // 200x112 game over (TIME'S UP)
-    crashSound: 'assets/crash.mp3',
-    passSound: 'assets/pass.mp3',
-    lapSound: 'assets/lap.mp3',
-    offRoadSound: 'assets/offroad.mp3',
-    backgroundMusic: 'assets/music.mp3',
-    gameOverSound: 'assets/gameover.mp3',
-    winSound: 'assets/win.mp3',
+    livesCarImage: 'assets/lives-car.png',     // tiny car for lives display
+    explosion1Image: 'assets/explosion1.png',  // explosion frame 1
+    explosion2Image: 'assets/explosion2.png',  // explosion frame 2
+    licenseImage: 'assets/license.png',        // game over (REVOKED)
+    timesUpImage: 'assets/timesup.png',        // game over (TIME'S UP)
+    crashSound, passSound, lapSound, offRoadSound,
+    backgroundMusic, gameOverSound, winSound
 };
 ```
 
@@ -140,23 +119,23 @@ Any missing file falls back to a placeholder graphic or no sound.
 
 ```
 cant-drive-55/
-  index.html
-  story.html
+  index.html          — game + all logic
+  story.html          — backstory and instructions
   README.md
   assets/
-    player.png          (250x155)
-    enemy.png           (120x75)
-    sky.png             (640x216)
-    box-art.png
-    billboard1-6.png    (120x60 each)
-    sign.png            (40x60)
-    horizon.png         (640x60)
-    band-logo.png       (60x80)
-    lives-car.png       (20x12)
-    explosion1.png      (250x155)
-    explosion2.png      (250x155)
-    license.png         (200x120)
-    timesup.png         (200x112)
+    player.png        (250x155)
+    enemy.png
+    sky.png           (640x216)
+    box-art.png       (splash + OG share image)
+    billboard1–6.png
+    sign.png
+    horizon.png       (640x60)
+    band-logo.png     (60x80)
+    lives-car.png
+    explosion1.png    (250x155)
+    explosion2.png    (250x155)
+    license.png       (200x120)
+    timesup.png       (200x112)
     crash.mp3
     pass.mp3
     lap.mp3
@@ -184,4 +163,4 @@ Game engine and code: Built with Kiro AI-assisted development
 
 Inspired by Sammy Hagar's "I Can't Drive 55" and the Atlanta tribute band Can't Drive 55.
 
-Hosted on GitHub Pages
+© 2026 Andrew Doss. All Rights Reserved.
