@@ -33,6 +33,8 @@ canvas{display:block;width:100%;height:auto;cursor:none;touch-action:none;-webki
 #start-screen.has-box-art p:last-child{bottom:8px}
 .has-box-art #splash-title{display:none}
 .hidden{display:none!important}
+.blink-text{animation:blink-anim 1s step-start infinite}
+@keyframes blink-anim{0%,50%{opacity:1}50.01%,100%{opacity:0}}
 .tip-jar-section{margin-top:4px;text-align:center}
 @media(max-width:660px){#ui{font-size:14px}#start-screen h1{font-size:32px}#start-screen p{font-size:13px}}
 </style>
@@ -48,7 +50,7 @@ canvas{display:block;width:100%;height:auto;cursor:none;touch-action:none;-webki
 <div id="box-art-container" class="hidden"><img id="box-art" src="" alt="Box Art"></div>
 <h1 id="splash-title">CAN'T DRIVE 55</h1>
 <p>Arrow keys or slide your finger to steer</p>
-<p>Click or tap to start</p>
+<p class="blink-text">CLICK OR TAP TO START</p>
 </div>
 </div>
 <div style="width:640px;max-width:100vw;text-align:center;padding:8px 0;">
@@ -156,21 +158,107 @@ function buildTrack(){
 <script>
 // Game state
 let G={};
+// ---- ATTRACT MODE CONSTANTS ----
+const ATTRACT_TITLE_DURATION = 480; // ~8 seconds on title at 60fps
+const ATTRACT_DEMO_DURATION = 900;  // ~15 seconds of demo
+
 function initGame(){
     buildTrack();
     G={run:false,over:false,pos:0,spd:0,mx:SL*0.45,px:0,
        lap:1,laps:3,lives:5,time:60,crash:0,
        keys:{l:false,r:false},tx:null,sky:0,
-       dist:0,nextCop:300,cops:0,offRoad:false,shake:0};
+       dist:0,nextCop:300,cops:0,offRoad:false,shake:0,
+       attractMode:false,attractTimer:ATTRACT_TITLE_DURATION,
+       attractPhase:'title',attractDemoTimer:0,attractFrame:0};
     updUI();
+}
+
+// ---- ATTRACT MODE ----
+function startAttractDemo(){
+    G.attractPhase='demo';
+    G.attractDemoTimer=ATTRACT_DEMO_DURATION;
+    G.attractMode=true;
+    G.attractFrame=0;
+    // Set up a drivable first mile — invincible, no flashing
+    buildTrack();
+    G.run=true;
+    G.over=false;
+    G.pos=0;G.spd=0;G.px=0;G.sky=0;
+    G.lap=1;G.laps=3;G.lives=5;G.time=60;G.crash=0;
+    G.dist=0;G.nextCop=300;G.cops=0;G.offRoad=false;G.shake=0;
+    G.keys={l:false,r:false};G.tx=null;
+    // Spawn a few cops for the AI to dodge
+    for(let i=0;i<3;i++){
+        const idx=80+Math.floor(Math.random()*200);
+        if(idx<TL)seg[idx].cars.push({o:(Math.random()-0.5)*1.0,p:false});
+        G.cops++;
+    }
+    SS.classList.add('hidden');
+    updUI();
+}
+
+function endAttractDemo(){
+    G.attractPhase='title';
+    G.attractTimer=ATTRACT_TITLE_DURATION;
+    G.attractMode=false;
+    G.run=false;G.over=false;
+    G.keys={l:false,r:false};G.tx=null;
+    stopM();
+    initGame();
+    SS.classList.remove('hidden');
+}
+
+function attractAI(dt){
+    const tf=dt*60;
+    G.attractFrame++;
+    // Auto-steer: follow the road curves and dodge cops
+    const si=Math.floor(G.pos/SL)%TL;
+    const curve=seg[si].c;
+    // Steer toward center, countering curves
+    let targetX=0; // center of road
+    // Look ahead for cops and dodge them
+    const si2=Math.floor(G.pos/SL)%TL;
+    for(let i=0;i<30;i++){
+        const idx=(si2+i)%TL;
+        for(const car of seg[idx].cars){
+            const cz=((idx*SL)-G.pos+TL*SL)%(TL*SL);
+            if(cz>0&&cz<SL*15&&Math.abs(G.px-car.o)<0.5){
+                // Dodge away from cop
+                targetX=car.o<G.px?G.px+0.4:G.px-0.4;
+            }
+        }
+    }
+    // Clamp target to road
+    targetX=Math.max(-0.45,Math.min(0.45,targetX));
+    // Drive toward target
+    const dx=targetX-G.px;
+    G.keys.l=dx<-0.03;
+    G.keys.r=dx>0.03;
+}
+
+function checkAttractBreak(){
+    // Any real user input breaks attract mode
+    return G._attractKeyPressed||G._attractTouchPressed||false;
 }
 function updUI(){
     document.getElementById('time').textContent=Math.max(0,Math.ceil(G.time));
     document.getElementById('lap').textContent='Mile '+G.lap+' of '+G.laps;
 }
 function update(dt){
+    // Attract mode: countdown on title screen, run AI during demo
+    if(!G.run&&!G.over&&!G.attractMode){
+        G.attractTimer-=dt*60;
+        if(G.attractTimer<=0){startAttractDemo();}
+        return;
+    }
+    if(G.attractMode){
+        if(checkAttractBreak()){endAttractDemo();G._attractKeyPressed=false;G._attractTouchPressed=false;return;}
+        G.attractDemoTimer-=dt*60;
+        if(G.attractDemoTimer<=0){endAttractDemo();return;}
+        attractAI(dt);
+    }
     if(!G.run||G.over)return;
-    G.time-=dt;
+    if(!G.attractMode)G.time-=dt;
     if(G.time<=0){G.time=0;G.over=true;stopM();ps('gameover');updUI();return;}
     if(G.crash>0){G.crash-=dt;G.spd*=0.95;updUI();return;}
     const tf=dt*60;
@@ -182,7 +270,7 @@ function update(dt){
     G.px+=st*tf*(G.spd/G.mx);
     // Off road
     if(Math.abs(G.px)>0.55){
-        if(!G.offRoad){G.offRoad=true;ps('offroad');}
+        if(!G.offRoad){G.offRoad=true;if(!G.attractMode)ps('offroad');}
         G.shake=Math.min(G.shake+0.15*tf,4);
         G.spd=Math.max(G.mx*0.08,G.spd-1.5);
     }else{G.offRoad=false;G.shake=Math.max(0,G.shake-0.5*tf);}
@@ -203,42 +291,44 @@ function update(dt){
         G.nextCop=G.dist/SL+Math.max(60,250-G.cops*20);
     }
     // Mile check
-    if(G.pos>=TL*SL){G.pos-=TL*SL;G.lap++;G.time+=30;ps('lap');
-        if(G.lap>G.laps){G.over=true;stopM();ps('win');}}
-    // Collision — wider check range and hitbox
-    const si2=Math.floor(G.pos/SL)%TL;
-    for(let i=0;i<15;i++){
-        const idx=(si2+i)%TL;
-        for(const car of seg[idx].cars){
-            const cz=((idx*SL)-G.pos+TL*SL)%(TL*SL);
-            if(cz>0&&cz<SL*5&&Math.abs(G.px-car.o)<0.3){
-                G.crash=1.5;G.spd=0;G.px=0;G.pos=0;G.lives--;ps('crash');
-                for(let c=0;c<30;c++){const ci=(si2+c)%TL;G.cops-=seg[ci].cars.length;seg[ci].cars=[];}
-                G.cops=Math.max(0,G.cops);
-                for(let c=0;c<3;c++){const ni=(si2+50+Math.floor(Math.random()*100))%TL;
-                    seg[ni].cars.push({o:(Math.random()-0.5)*1.2,p:false});G.cops++;}
-                if(G.lives<=0){G.over=true;stopM();ps('gameover');}
-                break;
-            }
-        }
-    }
-    // Pass
-    for(let i=1;i<30;i++){
-        const idx=(si2+i)%TL;
-        for(const car of seg[idx].cars){if(!car.p&&i<20){car.p=true;ps('pass');}}
-    }
-    // Billboard/sign collision
-    if(Math.abs(G.px)>0.6&&G.crash<=0){
-        for(let i=0;i<8;i++){
+    if(G.pos>=TL*SL){G.pos-=TL*SL;G.lap++;if(!G.attractMode)G.time+=30;if(!G.attractMode)ps('lap');
+        if(G.lap>G.laps&&!G.attractMode){G.over=true;stopM();ps('win');}}
+    // Collision — skip during attract mode (invincible)
+    if(!G.attractMode){
+        const si2=Math.floor(G.pos/SL)%TL;
+        for(let i=0;i<15;i++){
             const idx=(si2+i)%TL;
-            for(const sc of seg[idx].sc){
-                if((G.px>0&&sc.s>0)||(G.px<0&&sc.s<0)){
+            for(const car of seg[idx].cars){
+                const cz=((idx*SL)-G.pos+TL*SL)%(TL*SL);
+                if(cz>0&&cz<SL*5&&Math.abs(G.px-car.o)<0.3){
                     G.crash=1.5;G.spd=0;G.px=0;G.pos=0;G.lives--;ps('crash');
+                    for(let c=0;c<30;c++){const ci=(si2+c)%TL;G.cops-=seg[ci].cars.length;seg[ci].cars=[];}
+                    G.cops=Math.max(0,G.cops);
+                    for(let c=0;c<3;c++){const ni=(si2+50+Math.floor(Math.random()*100))%TL;
+                        seg[ni].cars.push({o:(Math.random()-0.5)*1.2,p:false});G.cops++;}
                     if(G.lives<=0){G.over=true;stopM();ps('gameover');}
                     break;
                 }
             }
-            if(G.crash>0)break;
+        }
+        // Pass
+        for(let i=1;i<30;i++){
+            const idx=(si2+i)%TL;
+            for(const car of seg[idx].cars){if(!car.p&&i<20){car.p=true;ps('pass');}}
+        }
+        // Billboard/sign collision
+        if(Math.abs(G.px)>0.6&&G.crash<=0){
+            for(let i=0;i<8;i++){
+                const idx=(si2+i)%TL;
+                for(const sc of seg[idx].sc){
+                    if((G.px>0&&sc.s>0)||(G.px<0&&sc.s<0)){
+                        G.crash=1.5;G.spd=0;G.px=0;G.pos=0;G.lives--;ps('crash');
+                        if(G.lives<=0){G.over=true;stopM();ps('gameover');}
+                        break;
+                    }
+                }
+                if(G.crash>0)break;
+            }
         }
     }
     // Drift
@@ -504,6 +594,18 @@ function draw(){
             X.drawImage(qrImg,qrX,qrY,qrS,qrS);
         }
         X.textAlign='left';}
+    // Attract mode overlay — "CLICK OR TAP TO START" flashing, no dark bar
+    if(G.attractMode){
+        const blink=Math.floor(Date.now()/500)%2;
+        if(blink){
+            X.fillStyle='#fff';X.font='bold 16px Arial';X.textAlign='center';
+            X.textBaseline='bottom';
+            X.shadowColor='rgba(0,0,0,0.9)';X.shadowBlur=6;
+            X.fillText('CLICK OR TAP TO START',W/2,H-8);
+            X.shadowBlur=0;X.textBaseline='alphabetic';
+            X.textAlign='left';
+        }
+    }
 }
 function dp(x1,y1,x2,y2,x3,y3,x4,y4,c){X.fillStyle=c;X.beginPath();X.moveTo(x1,y1);X.lineTo(x2,y2);X.lineTo(x3,y3);X.lineTo(x4,y4);X.closePath();X.fill();}
 </script>
@@ -511,28 +613,51 @@ function dp(x1,y1,x2,y2,x3,y3,x4,y4,c){X.fillStyle=c;X.beginPath();X.moveTo(x1,y
 let lt=0;
 function loop(t){const dt=Math.min((t-lt)/1000,0.05);lt=t;update(dt);draw();requestAnimationFrame(loop);}
 const SS=document.getElementById('start-screen');
-function go(){if(!G.run&&!G.over){G.run=true;SS.classList.add('hidden');
-    unlockAudio();startM();
-}}
+function go(){
+    // If in attract demo, break out and start the game
+    if(G.attractMode){
+        endAttractDemo();
+        // Fall through to start
+    }
+    if(!G.run&&!G.over){
+        G.run=true;SS.classList.add('hidden');
+        unlockAudio();startM();
+    }
+}
 SS.addEventListener('click',go);
 SS.addEventListener('touchstart',e=>{e.preventDefault();go();},{passive:false});
 document.addEventListener('keydown',e=>{
+    // Flag attract break on any key
+    if(G.attractMode){G._attractKeyPressed=true;}
     if(e.key==='ArrowLeft')G.keys.l=true;if(e.key==='ArrowRight')G.keys.r=true;
-    if(e.key==='r'||e.key==='R'){initGame();G.run=true;SS.classList.add('hidden');startM();}
-    if(e.key==='q'||e.key==='Q'){stopM();initGame();SS.classList.remove('hidden');}
+    if(e.key==='r'||e.key==='R'){
+        if(G.attractMode)endAttractDemo();
+        initGame();G.run=true;SS.classList.add('hidden');startM();
+    }
+    if(e.key==='q'||e.key==='Q'){
+        if(G.attractMode)endAttractDemo();
+        else{stopM();initGame();SS.classList.remove('hidden');}
+    }
 });
 document.addEventListener('keyup',e=>{if(e.key==='ArrowLeft')G.keys.l=false;if(e.key==='ArrowRight')G.keys.r=false;});
 C.addEventListener('touchstart',e=>{e.preventDefault();unlockAudio();
+    // Attract mode: break out and start game
+    if(G.attractMode){endAttractDemo();go();return;}
     if(G.over){initGame();G.run=true;startM();return;}
     const r=C.getBoundingClientRect();G.tx=(e.touches[0].clientX-r.left)*(W/r.width);
     G.px=((G.tx-W/2)/(W/2))*1.1;
 },{passive:false});
 C.addEventListener('touchmove',e=>{e.preventDefault();
+    if(G.attractMode)return;
     const r=C.getBoundingClientRect();G.tx=(e.touches[0].clientX-r.left)*(W/r.width);
     G.px=((G.tx-W/2)/(W/2))*1.1;
 },{passive:false});
 C.addEventListener('touchend',e=>{e.preventDefault();G.tx=null;},{passive:false});
-C.addEventListener('click',()=>{if(G.over){initGame();G.run=true;startM();}});
+C.addEventListener('click',()=>{
+    // Attract mode: break out and start game
+    if(G.attractMode){endAttractDemo();go();return;}
+    if(G.over){initGame();G.run=true;startM();}
+});
 document.addEventListener('touchmove',e=>{if(e.target===C)e.preventDefault();},{passive:false});
 
 async function init(){
