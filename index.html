@@ -909,14 +909,14 @@ function draw(){
         // Player brake lights (night mode)
         if(nightMode){
             const blw=Math.max(4,pw*0.04);
-            const bly=-ph*0.35;
+            const bly=-ph*0.35-5;
             // Left
-            X.fillStyle='#ff0000';X.fillRect(-pw*0.38,bly,blw,blw*0.6);
-            X.beginPath();X.arc(-pw*0.38+blw/2,bly+blw*0.3,blw*4,0,Math.PI*2);
+            X.fillStyle='#ff0000';X.fillRect(-pw*0.34,bly,blw,blw*0.6);
+            X.beginPath();X.arc(-pw*0.34+blw/2,bly+blw*0.3,blw*4,0,Math.PI*2);
             X.fillStyle='rgba(255,0,0,0.2)';X.fill();
             // Right
-            X.fillStyle='#ff0000';X.fillRect(pw*0.38-blw,bly,blw,blw*0.6);
-            X.beginPath();X.arc(pw*0.38-blw/2,bly+blw*0.3,blw*4,0,Math.PI*2);
+            X.fillStyle='#ff0000';X.fillRect(pw*0.34-blw,bly,blw,blw*0.6);
+            X.beginPath();X.arc(pw*0.34-blw/2,bly+blw*0.3,blw*4,0,Math.PI*2);
             X.fillStyle='rgba(255,0,0,0.2)';X.fill();
         }
         X.restore();
