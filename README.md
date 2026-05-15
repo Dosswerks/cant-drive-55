@@ -8,9 +8,20 @@ Can't Drive 55 is a pseudo-3D arcade driving game inspired by Sega's OutRun and 
 
 ## Gameplay
 
-The car accelerates automatically. The player's only job is to steer left and right to stay on the road, navigate curves, and dodge police cars. The highway winds through golden California hills under a bright blue sky, with billboards featuring the band lining both sides of the road.
+The car accelerates automatically. The player's only job is to steer left and right to stay on the road, navigate curves, and dodge traffic. The game features two playable tracks:
+
+- **Day Drive**: The classic California highway — golden hills, blue sky, and police cruisers to dodge.
+- **Night Drive**: A neon-lit city drive through nighttime Atlanta — more traffic, tighter curves, and a completely different atmosphere.
 
 The drive is broken into 3 miles. Complete each mile and you get 30 more seconds on the clock. Make it through all 3 miles and the band makes it to the gig.
+
+## Title Screen
+
+The title screen features two steering wheel buttons for track selection:
+- **DAY DRIVE** — yellow pulsating glow
+- **NIGHT DRIVE** — red pulsating glow
+
+The glows alternate on a 1-second cycle. An attract mode demo plays automatically after idle time, alternating between the day and night tracks.
 
 ## Controls
 
@@ -19,17 +30,46 @@ The drive is broken into 3 miles. Complete each mile and you get 30 more seconds
 
 ## Difficulty Progression
 
+### Day Track
 - The first stretch of road has no police cars — just curves and scenery to get comfortable with the steering.
 - Police cars spawn gradually as you drive further. The first one appears after a long warm-up period.
 - Gaps between cop spawns shrink over time, up to a maximum of 8 cops on the road.
 - Road curves start gentle and get progressively tighter deeper into the track.
 
+### Night Track
+- Higher spawn frequency — cars appear more often and more quickly.
+- Up to 12 vehicles on the road simultaneously.
+- Tighter, more frequent curves (city driving feel).
+- Three enemy types with different behaviors (see Obstacles below).
+
 ## Obstacles
 
+### Day Track
 - **Police Cars**: Appear on the road ahead. Collision costs a life, resets the player to the start of the track, and clears nearby cops. New cops respawn further ahead.
+
+### Night Track
+- **Police Cars** (10% of spawns): Same collision behavior as day. Feature alternating red and blue flashing glow points on top.
+- **Blue Sports Cars** (55% of spawns): Weave more aggressively across lanes. Unique pass sound.
+- **Yellow Taxis** (35% of spawns): Drift more slowly and predictably. Unique pass sound.
+
+### Both Tracks
 - **Billboards**: Six different band photo billboards line both sides of the road. Driving off the road into a billboard causes a crash.
 - **Speed Limit Signs**: "55" signs appear periodically on both sides. Hitting one causes a crash.
-- **Off-Road**: Driving past the red and white rumble strips triggers a slowdown, screen shake, dust overlay, and off-road sound.
+- **Off-Road**: Driving past the rumble strips triggers a slowdown, screen shake, and off-road sound. Day track shows dust; night track shows sparks.
+
+## Night Track Visual Features
+
+- **Atlanta skyline background**: Night sky photo of the Atlanta skyline
+- **Neon road markings**: All lane stripes and center line glow yellow
+- **Road borders**: Alternating white and dark grey
+- **Streetlights**: Vertical poles on both sides of the road with glowing lamps and spotlight cones shining down onto the road surface
+- **Billboard spotlights**: Radial light cones illuminate each billboard from below, with neon glow borders
+- **Brake lights**: Red glow points with halos on the rear of all vehicles (player and enemies)
+- **Police flashers**: Alternating red/blue glow points on cop cars
+- **Aircraft**: Points of light (blinking red or white) fly across the sky in straight lines — planes and helicopters creating a buzz of city activity
+- **Speed lines**: Blue-tinted at night (white during day)
+- **Dark road surface and shoulders**: City asphalt feel
+- **No player car shadow** (removed for night realism)
 
 ## Game Over Conditions
 
@@ -46,11 +86,11 @@ The drive is broken into 3 miles. Complete each mile and you get 30 more seconds
 
 ## Crash & Recovery
 
-When the player hits a police car, billboard, or sign:
+When the player hits a vehicle, billboard, or sign:
 - A 2-frame explosion sprite replaces the car for 1.5 seconds
 - Speed drops to zero
 - Player resets to the start of the track
-- Nearby cops are cleared and new ones spawn further ahead
+- Nearby cars are cleared and new ones spawn further ahead
 - Crash sound plays, plus game over sound if it was the final life
 
 ---
@@ -78,22 +118,28 @@ The page includes Open Graph and Twitter Card meta tags for rich link previews w
 ### Key Technical Features
 
 - **Pseudo-3D road rendering**: Perspective-projected road segments with curves, hills, shoulders, rumble strips, and lane markings
-- **Parallax scrolling**: Two-layer hills and horizon buildings shift with steering for depth
-- **Dynamic cop spawning**: Progressive difficulty that ramps naturally based on distance traveled
+- **Dual track system**: Day and night modes with independent track layouts, color palettes, and enemy configurations
+- **Multiple enemy types**: Cops, sports cars, and taxis with distinct drift behaviors and pass sounds
+- **Night mode lighting**: Streetlights with spotlight cones, billboard spotlights, brake light glows, police flashers, and neon road markings
+- **Aircraft system**: Blinking points of light crossing the night sky
+- **Parallax scrolling**: Two-layer hills and horizon buildings shift with steering for depth (day track)
+- **Dynamic traffic spawning**: Progressive difficulty that ramps naturally based on distance traveled
 - **Roadside scenery**: Billboards and signs scale with perspective and support custom images
 - **Analog speedometer**: Chrome-bordered gauge with notches, colored arc, and red needle
 - **Explosion sprites**: 2-frame animated explosion on crash
-- **Off-road effects**: Slowdown, screen shake, dust overlay, and sound
-- **Speed lines**: Visual streaks at high velocity
+- **Off-road effects**: Slowdown, screen shake, dust/sparks overlay, and sound
+- **Speed lines**: Visual streaks at high velocity (white day, blue night)
+- **Attract mode**: Alternates between day and night track demos with AI driving
 - **Responsive layout**: Canvas scales to fit mobile screens
 - **Touch controls**: Finger-position steering for mobile
 - **Tip jar**: PayPal donation button with QR code, consistent with other Dosswerks Arcade games
 
 ### Asset System
 
-All custom assets are defined in the config object at the top of the script:
+All custom assets are defined in config objects at the top of the script:
 
 ```javascript
+// Day mode assets
 const A = {
     playerCarImage: 'assets/player.png',       // 250x155 rear view
     enemyCarImage: 'assets/enemy.png',         // police car rear view
@@ -109,7 +155,19 @@ const A = {
     licenseImage: 'assets/license.png',        // game over (REVOKED)
     timesUpImage: 'assets/timesup.png',        // game over (TIME'S UP)
     crashSound, passSound, lapSound, offRoadSound,
-    backgroundMusic, gameOverSound, winSound
+    backgroundMusic, gameOverSound, winSound,
+    sportsPassSound: 'assets/sports-pass.mp3', // sports car pass sound
+    taxiPassSound: 'assets/taxi-pass.mp3',     // taxi pass sound
+};
+
+// Night mode assets (overrides)
+const AN = {
+    playerCarImage: 'assets/night-player.png',   // 250x164 rear view
+    enemyCarImage: 'assets/night-enemy.png',     // night police car
+    sportsCarImage: 'assets/night-sports.png',   // blue sports car
+    taxiCarImage: 'assets/night-taxi.png',       // yellow taxi
+    backgroundImage: 'assets/night-sky.png',     // Atlanta skyline photo
+    backgroundMusic: 'assets/night-music.mp3',   // night track music
 };
 ```
 
@@ -127,6 +185,7 @@ cant-drive-55/
     enemy.png
     sky.png           (640x216)
     box-art.png       (splash + OG share image)
+    wheel.png         (100x114, title screen buttons)
     billboard1–6.png
     sign.png
     horizon.png       (640x60)
@@ -136,11 +195,19 @@ cant-drive-55/
     explosion2.png    (250x155)
     license.png       (200x120)
     timesup.png       (200x112)
+    night-player.png  (250x164)
+    night-enemy.png   (proportional)
+    night-sports.png  (proportional)
+    night-taxi.png    (proportional)
+    night-sky.png     (640x216, Atlanta skyline)
     crash.mp3
     pass.mp3
+    sports-pass.mp3
+    taxi-pass.mp3
     lap.mp3
     offroad.mp3
     music.mp3
+    night-music.mp3
     gameover.mp3
     win.mp3
 ```
