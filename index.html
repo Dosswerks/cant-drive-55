@@ -35,8 +35,8 @@ canvas{display:block;width:100%;height:auto;cursor:none;touch-action:none;-webki
 .blink-text{animation:blink-anim 1s step-start infinite}
 @keyframes blink-anim{0%,50%{opacity:1}50.01%,100%{opacity:0}}
 .tip-jar-section{margin-top:4px;text-align:center}
-#mode-buttons{display:flex;gap:240px;z-index:12;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
-#start-screen.has-box-art #mode-buttons{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);bottom:auto;margin-top:0}
+#mode-buttons{display:flex;justify-content:space-between;width:80%;z-index:12;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+#start-screen.has-box-art #mode-buttons{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;bottom:auto;margin-top:0}
 #mode-buttons button{padding:0;font-size:18px;font-weight:bold;border:none;border-radius:0;cursor:pointer;transition:transform 0.15s;text-transform:uppercase;letter-spacing:1px;background:none;position:relative;width:100px;height:114px;display:flex;align-items:center;justify-content:center}
 #mode-buttons button:hover{transform:scale(1.08)}
 #mode-buttons button:active{transform:scale(0.96)}
@@ -48,7 +48,7 @@ canvas{display:block;width:100%;height:auto;cursor:none;touch-action:none;-webki
 @keyframes glow-night{0%,100%{filter:drop-shadow(0 0 2px rgba(255,50,50,0.3)) drop-shadow(0 0 4px rgba(255,50,50,0.1))}50%{filter:drop-shadow(0 0 8px rgba(255,50,50,0.9)) drop-shadow(0 0 16px rgba(255,50,50,0.6))}}
 #btn-day img{animation:glow-day 2s ease-in-out infinite}
 #btn-night img{animation:glow-night 2s ease-in-out infinite}
-@media(max-width:660px){#ui{font-size:14px}#start-screen h1{font-size:32px}#start-screen p{font-size:13px}#mode-buttons{gap:20px}#mode-buttons button{width:80px;height:91px}#mode-buttons button img{width:80px;height:91px}#mode-buttons button span{font-size:13px}}
+@media(max-width:660px){#ui{font-size:14px}#start-screen h1{font-size:32px}#start-screen p{font-size:13px}#mode-buttons button{width:80px;height:91px}#mode-buttons button img{width:80px;height:91px}#mode-buttons button span{font-size:13px}}
 </style>
 </head>
 <body>
@@ -919,8 +919,8 @@ function loop(t){const dt=Math.min((t-lt)/1000,0.05);lt=t;update(dt);draw();requ
 const SS=document.getElementById('start-screen');
 
 function go(mode){
-    nightMode=(mode==='night');
     if(G.attractMode){endAttractDemo();}
+    nightMode=(mode==='night');
     if(!G.run&&!G.over){
         buildTrack(); // Rebuild track for selected mode
         G.run=true;SS.classList.add('hidden');
